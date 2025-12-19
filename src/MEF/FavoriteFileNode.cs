@@ -29,6 +29,10 @@ namespace SolutionFavorites.MEF
         private static IVsImageService2 ImageService => _imageService ?? (_imageService = VS.GetRequiredService<SVsImageService, IVsImageService2>());
         private static IVsImageService2 _imageService;
 
+        // Cached file existence check - computed once at construction
+        private readonly bool _fileExists;
+        private readonly string _absoluteFilePath;
+
         protected override HashSet<Type> SupportedPatterns { get; } = new HashSet<Type>
         {
             typeof(ITreeDisplayItem),
@@ -43,6 +47,10 @@ namespace SolutionFavorites.MEF
             : base(parent)
         {
             Item = item;
+            
+            // Cache file path and existence at construction time to avoid repeated disk I/O
+            _absoluteFilePath = FavoritesManager.Instance.ToAbsolutePath(Item.Path);
+            _fileExists = !string.IsNullOrEmpty(Item.Path) && File.Exists(_absoluteFilePath);
         }
 
         /// <summary>
@@ -51,14 +59,14 @@ namespace SolutionFavorites.MEF
         public FavoriteItem Item { get; }
 
         /// <summary>
-        /// Gets the absolute file path.
+        /// Gets the absolute file path (cached).
         /// </summary>
-        public string AbsoluteFilePath => FavoritesManager.Instance.ToAbsolutePath(Item.Path);
+        public string AbsoluteFilePath => _absoluteFilePath;
 
         /// <summary>
-        /// Checks if the file still exists on disk.
+        /// Checks if the file exists on disk (cached at node creation).
         /// </summary>
-        public bool FileExists => !string.IsNullOrEmpty(Item.Path) && File.Exists(AbsoluteFilePath);
+        public bool FileExists => _fileExists;
 
         // ITreeDisplayItem
         public override string Text => Item.Name;

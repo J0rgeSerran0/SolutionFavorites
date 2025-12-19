@@ -20,6 +20,9 @@ namespace SolutionFavorites
         private FavoritesData _data;
         private string _currentSolutionPath;
         private string _solutionDirectory;
+        
+        // HashSet for O(1) duplicate file path lookups (stores lowercase relative paths)
+        private HashSet<string> _filePathIndex;
 
         /// <summary>
         /// Gets the singleton instance.
@@ -45,11 +48,12 @@ namespace SolutionFavorites
         /// <summary>
         /// Event raised when favorites change.
         /// </summary>
-        public event EventHandler FavoritesChanged;
+        public event EventHandler<FavoritesChangedEventArgs> FavoritesChanged;
 
         private FavoritesManager()
         {
             _data = new FavoritesData();
+            _filePathIndex = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -150,6 +154,7 @@ namespace SolutionFavorites
             _currentSolutionPath = solutionPath;
             _solutionDirectory = Path.GetDirectoryName(solutionPath);
             _data = new FavoritesData();
+            _filePathIndex = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             var filePath = GetFavoritesFilePath(solutionPath);
             if (filePath != null && File.Exists(filePath))
@@ -158,6 +163,12 @@ namespace SolutionFavorites
                 {
                     var json = File.ReadAllText(filePath);
                     _data = JsonConvert.DeserializeObject<FavoritesData>(json) ?? new FavoritesData();
+                    
+                    // Sort items after loading (ensures consistent order)
+                    SortItemsInPlace(_data.Items);
+                    
+                    // Build the path index for O(1) lookups
+                    RebuildPathIndex();
                 }
                 catch (Exception)
                 {
@@ -205,6 +216,7 @@ namespace SolutionFavorites
             _currentSolutionPath = null;
             _solutionDirectory = null;
             _data = new FavoritesData();
+            _filePathIndex = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             RaiseFavoritesChanged();
         }
 
@@ -215,7 +227,8 @@ namespace SolutionFavorites
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             EnsureSolutionPathLoaded();
-            return SortItems(_data.Items);
+            // Items are maintained in sorted order, return directly
+            return _data.Items;
         }
 
         /// <summary>
@@ -224,20 +237,71 @@ namespace SolutionFavorites
         public IReadOnlyList<FavoriteItem> GetFolderItems(FavoriteItem folder)
         {
             if (folder?.Children == null)
-                return new List<FavoriteItem>();
+                return Array.Empty<FavoriteItem>();
 
-            return SortItems(folder.Children);
+            // Items are maintained in sorted order, return directly
+            return folder.Children;
         }
 
         /// <summary>
-        /// Sorts items with folders first, then by name.
+        /// Inserts an item into a list maintaining sorted order (folders first, then by name).
         /// </summary>
-        private IReadOnlyList<FavoriteItem> SortItems(List<FavoriteItem> items)
+        private static void InsertSorted(List<FavoriteItem> items, FavoriteItem newItem)
         {
-            return items
-                .OrderBy(i => i.IsFolder ? 0 : 1)
-                .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            var insertIndex = 0;
+            
+            for (var i = 0; i < items.Count; i++)
+            {
+                var existing = items[i];
+                
+                // Folders come before files
+                if (newItem.IsFolder && !existing.IsFolder)
+                {
+                    insertIndex = i;
+                    break;
+                }
+                
+                // Files come after folders
+                if (!newItem.IsFolder && existing.IsFolder)
+                {
+                    insertIndex = i + 1;
+                    continue;
+                }
+                
+                // Same type: compare by name
+                if (StringComparer.OrdinalIgnoreCase.Compare(newItem.Name, existing.Name) < 0)
+                {
+                    insertIndex = i;
+                    break;
+                }
+                
+                insertIndex = i + 1;
+            }
+            
+            items.Insert(insertIndex, newItem);
+        }
+
+        /// <summary>
+        /// Sorts a list of items in place (folders first, then by name).
+        /// Used after loading from disk.
+        /// </summary>
+        private static void SortItemsInPlace(List<FavoriteItem> items)
+        {
+            items.Sort((a, b) =>
+            {
+                // Folders before files
+                var folderCompare = (a.IsFolder ? 0 : 1).CompareTo(b.IsFolder ? 0 : 1);
+                if (folderCompare != 0)
+                    return folderCompare;
+                
+                return StringComparer.OrdinalIgnoreCase.Compare(a.Name, b.Name);
+            });
+            
+            // Recursively sort children
+            foreach (var item in items.Where(i => i.IsFolder && i.Children != null))
+            {
+                SortItemsInPlace(item.Children);
+            }
         }
 
         /// <summary>
@@ -250,16 +314,17 @@ namespace SolutionFavorites
 
             var relativePath = ToRelativePath(filePath);
 
-            // Check if file already exists anywhere
-            if (FileExistsInTree(_data.Items, relativePath))
+            // Check if file already exists anywhere (O(1) lookup)
+            if (FileExistsInTree(relativePath))
             {
                 return null;
             }
 
             var item = FavoriteItem.CreateFile(relativePath);
-            _data.Items.Add(item);
+            InsertSorted(_data.Items, item); // Insert in sorted position
+            _filePathIndex.Add(relativePath); // Maintain index
             Save();
-            RaiseFavoritesChanged();
+            RaiseFavoritesChanged(null); // Root affected
             return item;
         }
 
@@ -273,16 +338,17 @@ namespace SolutionFavorites
 
             var relativePath = ToRelativePath(filePath);
 
-            // Check if file already exists anywhere
-            if (FileExistsInTree(_data.Items, relativePath))
+            // Check if file already exists anywhere (O(1) lookup)
+            if (FileExistsInTree(relativePath))
             {
                 return null;
             }
 
             var item = FavoriteItem.CreateFile(relativePath);
-            folder.Children.Add(item);
+            InsertSorted(folder.Children, item); // Insert in sorted position
+            _filePathIndex.Add(relativePath); // Maintain index
             Save();
-            RaiseFavoritesChanged();
+            RaiseFavoritesChanged(folder); // Specific folder affected
             return item;
         }
 
@@ -295,9 +361,9 @@ namespace SolutionFavorites
             EnsureSolutionPathLoaded();
 
             var folder = FavoriteItem.CreateFolder(name);
-            _data.Items.Add(folder);
+            InsertSorted(_data.Items, folder); // Insert in sorted position
             Save();
-            RaiseFavoritesChanged();
+            RaiseFavoritesChanged(null); // Root affected
             return folder;
         }
 
@@ -310,9 +376,9 @@ namespace SolutionFavorites
             EnsureSolutionPathLoaded();
 
             var folder = FavoriteItem.CreateFolder(name);
-            parentFolder.Children.Add(folder);
+            InsertSorted(parentFolder.Children, folder); // Insert in sorted position
             Save();
-            RaiseFavoritesChanged();
+            RaiseFavoritesChanged(parentFolder); // Parent folder affected
             return folder;
         }
 
@@ -327,7 +393,7 @@ namespace SolutionFavorites
 
             folder.Name = newName;
             Save();
-            RaiseFavoritesChanged();
+            RaiseFavoritesChanged(folder); // The folder itself is affected
         }
 
         /// <summary>
@@ -351,18 +417,18 @@ namespace SolutionFavorites
             // Remove from current location
             RemoveFromTree(_data.Items, item);
 
-            // Add to new location
+            // Add to new location in sorted position
             if (targetFolder == null)
             {
-                _data.Items.Add(item);
+                InsertSorted(_data.Items, item);
             }
             else
             {
-                targetFolder.Children.Add(item);
+                InsertSorted(targetFolder.Children, item);
             }
 
             Save();
-            RaiseFavoritesChanged();
+            RaiseFavoritesChanged(null); // Full refresh needed - items moved between containers
         }
 
         /// <summary>
@@ -394,9 +460,20 @@ namespace SolutionFavorites
             if (item == null)
                 return;
 
+            // Remove from path index
+            if (!item.IsFolder && !string.IsNullOrEmpty(item.Path))
+            {
+                _filePathIndex.Remove(item.Path);
+            }
+            else if (item.IsFolder)
+            {
+                // Remove all nested file paths from index
+                RemoveFromPathIndex(item.Children);
+            }
+
             RemoveFromTree(_data.Items, item);
             Save();
-            RaiseFavoritesChanged();
+            RaiseFavoritesChanged(null); // Full refresh - we don't track parent
         }
 
         /// <summary>
@@ -417,23 +494,59 @@ namespace SolutionFavorites
         }
 
         /// <summary>
-        /// Checks if a file path exists anywhere in the tree.
+        /// Checks if a file path exists anywhere in the tree using the path index (O(1)).
         /// </summary>
-        private bool FileExistsInTree(List<FavoriteItem> items, string relativePath)
+        private bool FileExistsInTree(string relativePath)
+        {
+            return _filePathIndex.Contains(relativePath);
+        }
+
+        /// <summary>
+        /// Rebuilds the path index from the current data.
+        /// </summary>
+        private void RebuildPathIndex()
+        {
+            _filePathIndex.Clear();
+            AddToPathIndex(_data.Items);
+        }
+
+        /// <summary>
+        /// Recursively adds all file paths to the index.
+        /// </summary>
+        private void AddToPathIndex(List<FavoriteItem> items)
         {
             foreach (var item in items)
             {
-                if (!item.IsFolder)
+                if (!item.IsFolder && !string.IsNullOrEmpty(item.Path))
                 {
-                    if (item.Path != null && item.Path.Equals(relativePath, StringComparison.OrdinalIgnoreCase))
-                        return true;
+                    _filePathIndex.Add(item.Path);
                 }
-                else if (FileExistsInTree(item.Children, relativePath))
+                else if (item.IsFolder && item.Children != null)
                 {
-                    return true;
+                    AddToPathIndex(item.Children);
                 }
             }
-            return false;
+        }
+
+        /// <summary>
+        /// Recursively removes all file paths from the index.
+        /// </summary>
+        private void RemoveFromPathIndex(List<FavoriteItem> items)
+        {
+            if (items == null)
+                return;
+
+            foreach (var item in items)
+            {
+                if (!item.IsFolder && !string.IsNullOrEmpty(item.Path))
+                {
+                    _filePathIndex.Remove(item.Path);
+                }
+                else if (item.IsFolder && item.Children != null)
+                {
+                    RemoveFromPathIndex(item.Children);
+                }
+            }
         }
 
         /// <summary>
@@ -442,7 +555,7 @@ namespace SolutionFavorites
         public bool IsFileFavorited(string filePath)
         {
             var relativePath = ToRelativePath(filePath);
-            return FileExistsInTree(_data.Items, relativePath);
+            return FileExistsInTree(relativePath);
         }
 
         /// <summary>
@@ -472,14 +585,30 @@ namespace SolutionFavorites
         /// </summary>
         public event EventHandler VisibilityChanged;
 
-        private void RaiseFavoritesChanged()
+        private void RaiseFavoritesChanged(FavoriteItem affectedFolder = null)
         {
-            FavoritesChanged?.Invoke(this, EventArgs.Empty);
+            FavoritesChanged?.Invoke(this, new FavoritesChangedEventArgs(affectedFolder));
         }
 
         private void RaiseVisibilityChanged()
         {
             VisibilityChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>
+    /// Event args for favorites changed events.
+    /// </summary>
+    internal sealed class FavoritesChangedEventArgs : EventArgs
+    {
+        /// <summary>
+        /// The folder that was affected, or null if the root was affected or a full refresh is needed.
+        /// </summary>
+        public FavoriteItem AffectedFolder { get; }
+
+        public FavoritesChangedEventArgs(FavoriteItem affectedFolder)
+        {
+            AffectedFolder = affectedFolder;
         }
     }
 }

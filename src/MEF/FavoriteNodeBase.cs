@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Windows;
 using Microsoft.Internal.VisualStudio.PlatformUI;
 using SolutionFavorites.Models;
@@ -262,6 +263,87 @@ namespace SolutionFavorites.MEF
                 (child as IDisposable)?.Dispose();
             }
             children.Clear();
+        }
+
+        /// <summary>
+        /// Performs a smart refresh of children that preserves existing folder nodes (and their expanded state).
+        /// Only adds new items and removes deleted ones, without clearing the collection.
+        /// </summary>
+        /// <param name="children">The observable collection of child nodes.</param>
+        /// <param name="currentItems">The current list of favorite items from the data model.</param>
+        /// <param name="parent">The parent node for newly created nodes.</param>
+        protected static void SmartRefreshChildren(ObservableCollection<object> children, IReadOnlyList<FavoriteItem> currentItems, object parent)
+        {
+            // Build lookup of existing nodes by their FavoriteItem
+            var existingNodes = new Dictionary<FavoriteItem, object>();
+            foreach (var child in children)
+            {
+                if (child is FavoriteFileNode fileNode)
+                {
+                    existingNodes[fileNode.Item] = child;
+                }
+                else if (child is FavoriteFolderNode folderNode)
+                {
+                    existingNodes[folderNode.Item] = child;
+                }
+            }
+
+            // Build set of current items for quick lookup
+            var currentItemSet = new HashSet<FavoriteItem>(currentItems);
+
+            // Remove nodes that are no longer in the data model (iterate backwards to safely remove)
+            for (var i = children.Count - 1; i >= 0; i--)
+            {
+                var child = children[i];
+                FavoriteItem childItem = null;
+                
+                if (child is FavoriteFileNode fileNode)
+                {
+                    childItem = fileNode.Item;
+                }
+                else if (child is FavoriteFolderNode folderNode)
+                {
+                    childItem = folderNode.Item;
+                }
+
+                if (childItem != null && !currentItemSet.Contains(childItem))
+                {
+                    children.RemoveAt(i);
+                    (child as IDisposable)?.Dispose();
+                }
+            }
+
+            // Now sync the collection to match the order in currentItems
+            // Add missing items and reorder existing ones
+            for (var i = 0; i < currentItems.Count; i++)
+            {
+                var item = currentItems[i];
+                
+                // Check if we already have a node for this item
+                if (existingNodes.TryGetValue(item, out var existingNode))
+                {
+                    // Find where this node currently is in the collection
+                    var currentIndex = children.IndexOf(existingNode);
+                    
+                    if (currentIndex == -1)
+                    {
+                        // Node was removed (shouldn't happen, but handle it)
+                        children.Insert(i, existingNode);
+                    }
+                    else if (currentIndex != i)
+                    {
+                        // Node exists but is in wrong position - move it
+                        children.Move(currentIndex, i);
+                    }
+                    // else: node is already in correct position, do nothing
+                }
+                else
+                {
+                    // Need to create a new node for this item
+                    var newNode = CreateNodeForItem(item, parent);
+                    children.Insert(i, newNode);
+                }
+            }
         }
 
         /// <summary>

@@ -42,8 +42,12 @@ namespace SolutionFavorites.MEF
             RefreshChildren();
         }
 
-        private void OnFavoritesChanged(object sender, EventArgs e)
+        private void OnFavoritesChanged(object sender, FavoritesChangedEventArgs e)
         {
+            // Only refresh if root was affected (AffectedFolder is null)
+            if (e.AffectedFolder != null)
+                return;
+
 #pragma warning disable VSSDK007 // Fire-and-forget is intentional for UI refresh event
             _ = ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
@@ -56,13 +60,9 @@ namespace SolutionFavorites.MEF
         private void RefreshChildren()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            DisposeChildren(_children);
-
+            
             var rootItems = FavoritesManager.Instance.GetRootItems();
-            foreach (var item in rootItems)
-            {
-                _children.Add(CreateNodeForItem(item, this));
-            }
+            SmartRefreshChildren(_children, rootItems, this);
 
             RaisePropertyChanged(nameof(HasItems));
             RaisePropertyChanged(nameof(Items));
