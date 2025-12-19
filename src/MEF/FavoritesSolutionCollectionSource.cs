@@ -43,7 +43,8 @@ namespace SolutionFavorites.MEF
 
         private void UpdateRootNodeVisibility()
         {
-            var shouldShow = FavoritesManager.Instance.IsVisible && FavoritesManager.Instance.HasFavorites;
+            // Show if: user toggled visibility on, OR there are favorites (and not explicitly hidden)
+            var shouldShow = FavoritesManager.Instance.IsVisible;
             
             if (shouldShow && !_items.Contains(_rootNode))
             {

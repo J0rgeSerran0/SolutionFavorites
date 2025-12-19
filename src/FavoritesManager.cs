@@ -176,6 +176,9 @@ namespace SolutionFavorites
                 }
             }
 
+            // Default visibility: visible only if there are favorites
+            _isVisible = HasFavorites;
+
             RaiseFavoritesChanged();
         }
 
@@ -323,6 +326,14 @@ namespace SolutionFavorites
             var item = FavoriteItem.CreateFile(relativePath);
             InsertSorted(_data.Items, item); // Insert in sorted position
             _filePathIndex.Add(relativePath); // Maintain index
+            
+            // Auto-show favorites when adding first item
+            if (!_isVisible)
+            {
+                _isVisible = true;
+                RaiseVisibilityChanged();
+            }
+            
             Save();
             RaiseFavoritesChanged(null); // Root affected
             return item;
@@ -362,6 +373,14 @@ namespace SolutionFavorites
 
             var folder = FavoriteItem.CreateFolder(name);
             InsertSorted(_data.Items, folder); // Insert in sorted position
+            
+            // Auto-show favorites when adding first item
+            if (!_isVisible)
+            {
+                _isVisible = true;
+                RaiseVisibilityChanged();
+            }
+            
             Save();
             RaiseFavoritesChanged(null); // Root affected
             return folder;
@@ -578,7 +597,7 @@ namespace SolutionFavorites
                 }
             }
         }
-        private bool _isVisible = true;
+        private bool _isVisible;
 
         /// <summary>
         /// Event raised when visibility changes.
