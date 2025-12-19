@@ -23,12 +23,21 @@ namespace SolutionFavorites
     internal sealed partial class PackageIds
     {
         public const int FavoritesFileContextMenu = 0x0003;
+        public const int FavoritesFolderContextMenu = 0x0004;
+        public const int FavoritesRootContextMenu = 0x0005;
         public const int AddToFavoritesGroup = 0x0010;
         public const int FileEditGroup = 0x0060;
         public const int FileActionsGroup = 0x0070;
+        public const int FolderNewGroup = 0x0080;
+        public const int FolderEditGroup = 0x0090;
+        public const int RootNewGroup = 0x00A0;
         public const int AddToFavorites = 0x0100;
         public const int RemoveFromFavorites = 0x0101;
         public const int OpenContainingFolder = 0x0105;
         public const int CopyFullPath = 0x0106;
+        public const int NewFolder = 0x0110;
+        public const int NewFolderInFolder = 0x0111;
+        public const int RenameFolder = 0x0112;
+        public const int RemoveFolder = 0x0113;
     }
 }

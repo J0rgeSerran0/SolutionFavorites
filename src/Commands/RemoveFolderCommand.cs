@@ -3,10 +3,10 @@ using SolutionFavorites.MEF;
 namespace SolutionFavorites.Commands
 {
     /// <summary>
-    /// Command to remove a file from favorites.
+    /// Command to remove a folder from favorites.
     /// </summary>
-    [Command(PackageIds.RemoveFromFavorites)]
-    internal sealed class RemoveFromFavoritesCommand : BaseCommand<RemoveFromFavoritesCommand>
+    [Command(PackageIds.RemoveFolder)]
+    internal sealed class RemoveFolderCommand : BaseCommand<RemoveFolderCommand>
     {
         protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
         {
@@ -14,9 +14,9 @@ namespace SolutionFavorites.Commands
 
             var currentItem = FavoritesContextMenuController.CurrentItem;
 
-            if (currentItem is FavoriteFileNode fileNode)
+            if (currentItem is FavoriteFolderNode folderNode)
             {
-                FavoritesManager.Instance.Remove(fileNode.Item);
+                FavoritesManager.Instance.Remove(folderNode.Item);
             }
         }
     }

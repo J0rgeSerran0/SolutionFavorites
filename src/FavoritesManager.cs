@@ -10,7 +10,7 @@ using SolutionFavorites.Models;
 namespace SolutionFavorites
 {
     /// <summary>
-    /// Manages persistence and operations for favorite files.
+    /// Manages persistence and operations for favorite files using hierarchical structure.
     /// </summary>
     internal sealed class FavoritesManager
     {
@@ -213,33 +213,47 @@ namespace SolutionFavorites
         public IReadOnlyList<FavoriteItem> GetRootItems()
         {
             EnsureSolutionPathLoaded();
+            return SortItems(_data.Items);
+        }
 
-            return _data.Items
-                .OrderBy(i => i.SortOrder)
+        /// <summary>
+        /// Gets items within a specific folder.
+        /// </summary>
+        public IReadOnlyList<FavoriteItem> GetFolderItems(FavoriteItem folder)
+        {
+            if (folder?.Children == null)
+                return new List<FavoriteItem>();
+
+            return SortItems(folder.Children);
+        }
+
+        /// <summary>
+        /// Sorts items with folders first, then by name.
+        /// </summary>
+        private IReadOnlyList<FavoriteItem> SortItems(List<FavoriteItem> items)
+        {
+            return items
+                .OrderBy(i => i.IsFolder ? 0 : 1)
                 .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }
 
         /// <summary>
-        /// Adds a file to favorites.
+        /// Adds a file to favorites at the root level.
         /// </summary>
         public FavoriteItem AddFile(string filePath)
         {
             EnsureSolutionPathLoaded();
 
-            // Convert to relative path for storage
             var relativePath = ToRelativePath(filePath);
 
-            // Check if file already exists (compare both relative and absolute)
-            if (_data.Items.Any(i => 
-                i.FilePath.Equals(relativePath, StringComparison.OrdinalIgnoreCase) ||
-                ToAbsolutePath(i.FilePath).Equals(filePath, StringComparison.OrdinalIgnoreCase)))
+            // Check if file already exists anywhere
+            if (FileExistsInTree(_data.Items, relativePath))
             {
                 return null;
             }
 
             var item = FavoriteItem.CreateFile(relativePath);
-            item.SortOrder = _data.Items.Count;
             _data.Items.Add(item);
             Save();
             RaiseFavoritesChanged();
@@ -247,25 +261,170 @@ namespace SolutionFavorites
         }
 
         /// <summary>
-        /// Removes a favorite item.
+        /// Adds a file to a specific folder.
         /// </summary>
-        public void Remove(string itemId)
+        public FavoriteItem AddFileToFolder(string filePath, FavoriteItem folder)
         {
-            var item = _data.Items.FirstOrDefault(i => i.Id == itemId);
-            if (item == null)
+            EnsureSolutionPathLoaded();
+
+            var relativePath = ToRelativePath(filePath);
+
+            // Check if file already exists anywhere
+            if (FileExistsInTree(_data.Items, relativePath))
+            {
+                return null;
+            }
+
+            var item = FavoriteItem.CreateFile(relativePath);
+            folder.Children.Add(item);
+            Save();
+            RaiseFavoritesChanged();
+            return item;
+        }
+
+        /// <summary>
+        /// Creates a new folder at the root level.
+        /// </summary>
+        public FavoriteItem CreateFolder(string name)
+        {
+            EnsureSolutionPathLoaded();
+
+            var folder = FavoriteItem.CreateFolder(name);
+            _data.Items.Add(folder);
+            Save();
+            RaiseFavoritesChanged();
+            return folder;
+        }
+
+        /// <summary>
+        /// Creates a new folder inside an existing folder.
+        /// </summary>
+        public FavoriteItem CreateFolderIn(string name, FavoriteItem parentFolder)
+        {
+            EnsureSolutionPathLoaded();
+
+            var folder = FavoriteItem.CreateFolder(name);
+            parentFolder.Children.Add(folder);
+            Save();
+            RaiseFavoritesChanged();
+            return folder;
+        }
+
+        /// <summary>
+        /// Renames a folder.
+        /// </summary>
+        public void RenameFolder(FavoriteItem folder, string newName)
+        {
+            if (folder == null || !folder.IsFolder)
                 return;
 
-            _data.Items.Remove(item);
+            folder.Name = newName;
             Save();
             RaiseFavoritesChanged();
         }
 
         /// <summary>
-        /// Gets an item by ID.
+        /// Moves an item to a different location.
         /// </summary>
-        public FavoriteItem GetItem(string itemId)
+        public void MoveItem(FavoriteItem item, FavoriteItem targetFolder)
         {
-            return _data.Items.FirstOrDefault(i => i.Id == itemId);
+            if (item == null)
+                return;
+
+            // Prevent moving a folder into itself or its descendants
+            if (item.IsFolder && targetFolder != null)
+            {
+                if (item == targetFolder || IsDescendantOf(targetFolder, item))
+                {
+                    return;
+                }
+            }
+
+            // Remove from current location
+            RemoveFromTree(_data.Items, item);
+
+            // Add to new location
+            if (targetFolder == null)
+            {
+                _data.Items.Add(item);
+            }
+            else
+            {
+                targetFolder.Children.Add(item);
+            }
+
+            Save();
+            RaiseFavoritesChanged();
+        }
+
+        /// <summary>
+        /// Checks if potentialDescendant is nested inside ancestor.
+        /// </summary>
+        private bool IsDescendantOf(FavoriteItem potentialDescendant, FavoriteItem ancestor)
+        {
+            if (ancestor?.Children == null)
+                return false;
+
+            foreach (var child in ancestor.Children)
+            {
+                if (child == potentialDescendant)
+                    return true;
+
+                if (child.IsFolder && IsDescendantOf(potentialDescendant, child))
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Removes an item from the tree.
+        /// </summary>
+        public void Remove(FavoriteItem item)
+        {
+            if (item == null)
+                return;
+
+            RemoveFromTree(_data.Items, item);
+            Save();
+            RaiseFavoritesChanged();
+        }
+
+        /// <summary>
+        /// Recursively removes an item from a list.
+        /// </summary>
+        private bool RemoveFromTree(List<FavoriteItem> items, FavoriteItem itemToRemove)
+        {
+            if (items.Remove(itemToRemove))
+                return true;
+
+            foreach (var folder in items.Where(i => i.IsFolder))
+            {
+                if (RemoveFromTree(folder.Children, itemToRemove))
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if a file path exists anywhere in the tree.
+        /// </summary>
+        private bool FileExistsInTree(List<FavoriteItem> items, string relativePath)
+        {
+            foreach (var item in items)
+            {
+                if (!item.IsFolder)
+                {
+                    if (item.Path != null && item.Path.Equals(relativePath, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                else if (FileExistsInTree(item.Children, relativePath))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -274,9 +433,7 @@ namespace SolutionFavorites
         public bool IsFileFavorited(string filePath)
         {
             var relativePath = ToRelativePath(filePath);
-            return _data.Items.Any(i => 
-                i.FilePath.Equals(relativePath, StringComparison.OrdinalIgnoreCase) ||
-                ToAbsolutePath(i.FilePath).Equals(filePath, StringComparison.OrdinalIgnoreCase));
+            return FileExistsInTree(_data.Items, relativePath);
         }
 
         /// <summary>

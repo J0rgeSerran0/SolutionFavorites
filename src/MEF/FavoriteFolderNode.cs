@@ -12,9 +12,9 @@ using SolutionFavorites.Models;
 namespace SolutionFavorites.MEF
 {
     /// <summary>
-    /// The root "Favorites" node shown as the first child under the solution.
+    /// Represents a virtual folder node in the Favorites tree.
     /// </summary>
-    internal sealed class FavoritesRootNode : 
+    internal sealed class FavoriteFolderNode :
         IAttachedCollectionSource,
         ITreeDisplayItem,
         ITreeDisplayItemWithImages,
@@ -22,33 +22,46 @@ namespace SolutionFavorites.MEF
         IBrowsablePattern,
         IInteractionPatternProvider,
         IContextMenuPattern,
+        IInvocationPattern,
+        IDragDropSourcePattern,
         IDragDropTargetPattern,
         ISupportDisposalNotification,
         INotifyPropertyChanged,
         IDisposable
     {
         private readonly ObservableCollection<object> _children;
-        private readonly object _sourceItem;
         private bool _disposed;
+        private bool _isExpanded;
 
         private static readonly HashSet<Type> _supportedPatterns = new HashSet<Type>
         {
             typeof(ITreeDisplayItem),
             typeof(IBrowsablePattern),
             typeof(IContextMenuPattern),
+            typeof(IInvocationPattern),
+            typeof(IDragDropSourcePattern),
             typeof(IDragDropTargetPattern),
             typeof(ISupportDisposalNotification),
         };
 
-        public FavoritesRootNode(object sourceItem)
+        public FavoriteFolderNode(FavoriteItem item, object parent)
         {
-            _sourceItem = sourceItem;
+            Item = item;
+            SourceItem = parent;
             _children = new ObservableCollection<object>();
             FavoritesManager.Instance.FavoritesChanged += OnFavoritesChanged;
-            
-            // Do initial refresh
             RefreshChildren();
         }
+
+        /// <summary>
+        /// The underlying favorite folder item.
+        /// </summary>
+        public FavoriteItem Item { get; }
+
+        /// <summary>
+        /// Parent node.
+        /// </summary>
+        public object SourceItem { get; }
 
         private void OnFavoritesChanged(object sender, EventArgs e)
         {
@@ -61,7 +74,10 @@ namespace SolutionFavorites.MEF
 #pragma warning restore VSTHRD110
         }
 
-        private void RefreshChildren()
+        /// <summary>
+        /// Refreshes the children of this folder.
+        /// </summary>
+        public void RefreshChildren()
         {
             // Dispose existing children
             foreach (var child in _children)
@@ -70,8 +86,8 @@ namespace SolutionFavorites.MEF
             }
             _children.Clear();
 
-            var rootItems = FavoritesManager.Instance.GetRootItems();
-            foreach (var item in rootItems)
+            var folderItems = FavoritesManager.Instance.GetFolderItems(Item);
+            foreach (var item in folderItems)
             {
                 if (item.IsFolder)
                 {
@@ -83,45 +99,47 @@ namespace SolutionFavorites.MEF
                 }
             }
 
-
             RaisePropertyChanged(nameof(HasItems));
             RaisePropertyChanged(nameof(Items));
         }
 
         // IAttachedCollectionSource
-        public object SourceItem => _sourceItem;
-        public bool HasItems => FavoritesManager.Instance.HasFavorites;
+        public bool HasItems => Item.Children != null && Item.Children.Count > 0;
         public IEnumerable Items => _children;
 
-        // IBrowsablePattern
-        public object GetBrowseObject() => this;
-
         // ITreeDisplayItem
-        public string Text => "Favorites";
-        public string ToolTipText => "Favorite files pinned for quick access";
+        public string Text => Item.Name;
+        public string ToolTipText => Item.Name;
         public object ToolTipContent => ToolTipText;
         public string StateToolTipText => string.Empty;
-        System.Windows.FontWeight ITreeDisplayItem.FontWeight => System.Windows.FontWeights.Bold;
+        System.Windows.FontWeight ITreeDisplayItem.FontWeight => System.Windows.FontWeights.Normal;
         System.Windows.FontStyle ITreeDisplayItem.FontStyle => System.Windows.FontStyles.Normal;
         public bool IsCut => false;
 
         // ITreeDisplayItemWithImages
-        public ImageMoniker IconMoniker => KnownMonikers.Favorite;
-        public ImageMoniker ExpandedIconMoniker => KnownMonikers.Favorite;
+        public ImageMoniker IconMoniker => _isExpanded ? KnownMonikers.FolderOpened : KnownMonikers.FolderClosed;
+        public ImageMoniker ExpandedIconMoniker => KnownMonikers.FolderOpened;
         public ImageMoniker OverlayIconMoniker => default;
         public ImageMoniker StateIconMoniker => default;
 
-        // IPrioritizedComparable - Priority -1 ensures this appears first
-        public int Priority => -1;
+        // IPrioritizedComparable - Folders appear before files
+        public int Priority => 0;
 
         public int CompareTo(object obj)
         {
-            if (obj is IPrioritizedComparable other)
+            if (obj is FavoriteFolderNode otherFolder)
             {
-                return Priority.CompareTo(other.Priority);
+                return StringComparer.OrdinalIgnoreCase.Compare(Text, otherFolder.Text);
             }
-            return -1; // Always sort before non-prioritized items
+            if (obj is FavoriteFileNode)
+            {
+                return -1; // Folders before files
+            }
+            return 0;
         }
+
+        // IBrowsablePattern
+        public object GetBrowseObject() => this;
 
         // IInteractionPatternProvider
         public TPattern GetPattern<TPattern>() where TPattern : class
@@ -136,11 +154,19 @@ namespace SolutionFavorites.MEF
                 return this as TPattern;
             }
 
+
             return null;
         }
 
         // IContextMenuPattern
         public IContextMenuController ContextMenuController => FavoritesContextMenuController.Instance;
+
+        // IInvocationPattern - double-click expands/collapses folder
+        public IInvocationController InvocationController => null;
+        public bool CanPreview => false;
+
+        // IDragDropSourcePattern
+        public IDragDropSourceController DragDropSourceController => FavoritesDragDropController.Instance;
 
         // IDragDropTargetPattern
         public DirectionalDropArea SupportedAreas => DirectionalDropArea.On;
@@ -179,13 +205,12 @@ namespace SolutionFavorites.MEF
                         
                         if (node is FavoriteFileNode fileNode)
                             itemToMove = fileNode.Item;
-                        else if (node is FavoriteFolderNode folderNode)
+                        else if (node is FavoriteFolderNode folderNode && folderNode.Item != Item)
                             itemToMove = folderNode.Item;
 
                         if (itemToMove != null)
                         {
-                            // Move to root (null target folder)
-                            FavoritesManager.Instance.MoveItem(itemToMove, null);
+                            FavoritesManager.Instance.MoveItem(itemToMove, Item);
                         }
                     }
                     e.Handled = true;
@@ -202,6 +227,18 @@ namespace SolutionFavorites.MEF
         private void RaisePropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        /// <summary>
+        /// Updates the expanded state for icon changes.
+        /// </summary>
+        public void SetExpanded(bool expanded)
+        {
+            if (_isExpanded != expanded)
+            {
+                _isExpanded = expanded;
+                RaisePropertyChanged(nameof(IconMoniker));
+            }
         }
 
         public void Dispose()

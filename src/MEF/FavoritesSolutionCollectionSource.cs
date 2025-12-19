@@ -21,7 +21,34 @@ namespace SolutionFavorites.MEF
         {
             SourceItem = sourceItem;
             _rootNode = rootNode;
-            _items = new ObservableCollection<object> { _rootNode };
+            _items = new ObservableCollection<object>();
+            
+            // Listen for favorites changes to show/hide root node
+            FavoritesManager.Instance.FavoritesChanged += OnFavoritesChanged;
+            
+            // Initial visibility check
+            UpdateRootNodeVisibility();
+        }
+
+        private void OnFavoritesChanged(object sender, EventArgs e)
+        {
+            UpdateRootNodeVisibility();
+        }
+
+        private void UpdateRootNodeVisibility()
+        {
+            var hasFavorites = FavoritesManager.Instance.HasFavorites;
+            
+            if (hasFavorites && !_items.Contains(_rootNode))
+            {
+                _items.Add(_rootNode);
+                RaisePropertyChanged(nameof(HasItems));
+            }
+            else if (!hasFavorites && _items.Contains(_rootNode))
+            {
+                _items.Remove(_rootNode);
+                RaisePropertyChanged(nameof(HasItems));
+            }
         }
 
         public object SourceItem { get; }
@@ -32,11 +59,17 @@ namespace SolutionFavorites.MEF
 
         public event PropertyChangedEventHandler PropertyChanged;
 
+        private void RaisePropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
         public void Dispose()
         {
             if (!_disposed)
             {
                 _disposed = true;
+                FavoritesManager.Instance.FavoritesChanged -= OnFavoritesChanged;
                 _items.Clear();
             }
         }

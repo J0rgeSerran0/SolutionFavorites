@@ -60,6 +60,10 @@ namespace SolutionFavorites.MEF
             {
                 case FavoriteFileNode _:
                     return PackageIds.FavoritesFileContextMenu;
+                case FavoriteFolderNode _:
+                    return PackageIds.FavoritesFolderContextMenu;
+                case FavoritesRootNode _:
+                    return PackageIds.FavoritesRootContextMenu;
                 default:
                     return 0;
             }

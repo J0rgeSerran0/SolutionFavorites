@@ -47,11 +47,18 @@
   <ItemGroup>
     <Compile Include="Commands\AddToFavoritesCommand.cs" />
     <Compile Include="Commands\CopyFullPathCommand.cs" />
+    <Compile Include="Commands\NewFolderCommand.cs" />
+    <Compile Include="Commands\NewFolderInFolderCommand.cs" />
     <Compile Include="Commands\OpenContainingFolderCommand.cs" />
+    <Compile Include="Commands\RemoveFolderCommand.cs" />
     <Compile Include="Commands\RemoveFromFavoritesCommand.cs" />
+    <Compile Include="Commands\RenameFolderCommand.cs" />
     <Compile Include="FavoritesManager.cs" />
     <Compile Include="MEF\FavoriteFileNode.cs" />
+    <Compile Include="MEF\FavoriteFolderNode.cs" />
     <Compile Include="MEF\FavoritesContextMenuController.cs" />
+    <Compile Include="MEF\FavoritesDragDropController.cs" />
+    <Compile Include="MEF\FavoritesDragDropTargetController.cs" />
     <Compile Include="MEF\FavoritesInvocationController.cs" />
     <Compile Include="MEF\FavoritesRootNode.cs" />
     <Compile Include="MEF\FavoritesSolutionCollectionSource.cs" />

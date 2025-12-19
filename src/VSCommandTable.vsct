@@ -16,12 +16,24 @@
           <ButtonText>Favorites File Context Menu</ButtonText>
         </Strings>
       </Menu>
+      <!-- Folder context menu -->
+      <Menu guid="SolutionFavorites" id="FavoritesFolderContextMenu" type="Context">
+        <Strings>
+          <ButtonText>Favorites Folder Context Menu</ButtonText>
+        </Strings>
+      </Menu>
+      <!-- Root node context menu -->
+      <Menu guid="SolutionFavorites" id="FavoritesRootContextMenu" type="Context">
+        <Strings>
+          <ButtonText>Favorites Root Context Menu</ButtonText>
+        </Strings>
+      </Menu>
     </Menus>
     
     <Groups>
       <!-- Group for "Add to Favorites" in Solution Explorer file context menu -->
       <!-- Placed after the View Code group (IDG_VS_CTXT_ITEM_VIEWCODE) -->
-      <Group guid="SolutionFavorites" id="AddToFavoritesGroup" priority="0x0200">
+      <Group guid="SolutionFavorites" id="AddToFavoritesGroup" priority="0x0100">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_ITEMNODE"/>
       </Group>
       
@@ -31,6 +43,19 @@
       </Group>
       <Group guid="SolutionFavorites" id="FileActionsGroup" priority="0x0200">
         <Parent guid="SolutionFavorites" id="FavoritesFileContextMenu"/>
+      </Group>
+      
+      <!-- Folder context menu groups -->
+      <Group guid="SolutionFavorites" id="FolderNewGroup" priority="0x0100">
+        <Parent guid="SolutionFavorites" id="FavoritesFolderContextMenu"/>
+      </Group>
+      <Group guid="SolutionFavorites" id="FolderEditGroup" priority="0x0200">
+        <Parent guid="SolutionFavorites" id="FavoritesFolderContextMenu"/>
+      </Group>
+      
+      <!-- Root context menu groups -->
+      <Group guid="SolutionFavorites" id="RootNewGroup" priority="0x0100">
+        <Parent guid="SolutionFavorites" id="FavoritesRootContextMenu"/>
       </Group>
     </Groups>
 
@@ -79,6 +104,50 @@
           <LocCanonicalName>.SolutionFavorites.CopyFullPath</LocCanonicalName>
         </Strings>
       </Button>
+      
+      <!-- New Folder - appears in root and folder context menus -->
+      <Button guid="SolutionFavorites" id="NewFolder" priority="0x0100" type="Button">
+        <Parent guid="SolutionFavorites" id="RootNewGroup" />
+        <Icon guid="ImageCatalogGuid" id="NewFolder" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>New Folder</ButtonText>
+          <LocCanonicalName>.SolutionFavorites.NewFolder</LocCanonicalName>
+        </Strings>
+      </Button>
+      
+      <!-- New Folder in folder context menu -->
+      <Button guid="SolutionFavorites" id="NewFolderInFolder" priority="0x0100" type="Button">
+        <Parent guid="SolutionFavorites" id="FolderNewGroup" />
+        <Icon guid="ImageCatalogGuid" id="NewFolder" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>New Folder</ButtonText>
+          <LocCanonicalName>.SolutionFavorites.NewFolderInFolder</LocCanonicalName>
+        </Strings>
+      </Button>
+      
+      <!-- Rename Folder -->
+      <Button guid="SolutionFavorites" id="RenameFolder" priority="0x0100" type="Button">
+        <Parent guid="SolutionFavorites" id="FolderEditGroup" />
+        <Icon guid="ImageCatalogGuid" id="Rename" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Rename</ButtonText>
+          <LocCanonicalName>.SolutionFavorites.RenameFolder</LocCanonicalName>
+        </Strings>
+      </Button>
+      
+      <!-- Remove Folder -->
+      <Button guid="SolutionFavorites" id="RemoveFolder" priority="0x0200" type="Button">
+        <Parent guid="SolutionFavorites" id="FolderEditGroup" />
+        <Icon guid="ImageCatalogGuid" id="RemoveFromCollection" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Remove</ButtonText>
+          <LocCanonicalName>.SolutionFavorites.RemoveFolder</LocCanonicalName>
+        </Strings>
+      </Button>
     </Buttons>
   </Commands>
   
@@ -86,17 +155,26 @@
     <GuidSymbol name="SolutionFavorites" value="{7a4b358f-2116-47f8-bbe5-130edf57af2a}">
       <!-- Menus -->
       <IDSymbol name="FavoritesFileContextMenu" value="0x0003" />
+      <IDSymbol name="FavoritesFolderContextMenu" value="0x0004" />
+      <IDSymbol name="FavoritesRootContextMenu" value="0x0005" />
       
       <!-- Groups -->
       <IDSymbol name="AddToFavoritesGroup" value="0x0010" />
       <IDSymbol name="FileEditGroup" value="0x0060" />
       <IDSymbol name="FileActionsGroup" value="0x0070" />
+      <IDSymbol name="FolderNewGroup" value="0x0080" />
+      <IDSymbol name="FolderEditGroup" value="0x0090" />
+      <IDSymbol name="RootNewGroup" value="0x00A0" />
       
       <!-- Commands -->
       <IDSymbol name="AddToFavorites" value="0x0100" />
       <IDSymbol name="RemoveFromFavorites" value="0x0101" />
       <IDSymbol name="OpenContainingFolder" value="0x0105" />
       <IDSymbol name="CopyFullPath" value="0x0106" />
+      <IDSymbol name="NewFolder" value="0x0110" />
+      <IDSymbol name="NewFolderInFolder" value="0x0111" />
+      <IDSymbol name="RenameFolder" value="0x0112" />
+      <IDSymbol name="RemoveFolder" value="0x0113" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

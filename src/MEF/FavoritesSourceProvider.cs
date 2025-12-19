@@ -41,8 +41,13 @@ namespace SolutionFavorites.MEF
             {
                 yield return Relationships.Contains;
             }
-            // Attach to FavoritesRootNode - provides its children (files)
+            // Attach to FavoritesRootNode - provides its children (files and folders)
             else if (item is FavoritesRootNode)
+            {
+                yield return Relationships.Contains;
+            }
+            // Attach to FavoriteFolderNode - provides its children (files and subfolders)
+            else if (item is FavoriteFolderNode)
             {
                 yield return Relationships.Contains;
             }
@@ -73,6 +78,11 @@ namespace SolutionFavorites.MEF
                 else if (item is FavoritesRootNode rootNode)
                 {
                     return rootNode;
+                }
+                // For folder nodes, return itself (it contains child items)
+                else if (item is FavoriteFolderNode folderNode)
+                {
+                    return folderNode;
                 }
             }
 

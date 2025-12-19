@@ -23,6 +23,7 @@ namespace SolutionFavorites.MEF
         IInteractionPatternProvider,
         IContextMenuPattern,
         IInvocationPattern,
+        IDragDropSourcePattern,
         ISupportDisposalNotification,
         INotifyPropertyChanged,
         IDisposable
@@ -42,6 +43,7 @@ namespace SolutionFavorites.MEF
             typeof(IBrowsablePattern),
             typeof(IContextMenuPattern),
             typeof(IInvocationPattern),
+            typeof(IDragDropSourcePattern),
             typeof(ISupportDisposalNotification),
         };
 
@@ -50,6 +52,7 @@ namespace SolutionFavorites.MEF
             Item = item;
             SourceItem = parent;
         }
+
 
         /// <summary>
         /// The underlying favorite item data.
@@ -64,12 +67,12 @@ namespace SolutionFavorites.MEF
         /// <summary>
         /// Gets the absolute file path.
         /// </summary>
-        public string AbsoluteFilePath => FavoritesManager.Instance.ToAbsolutePath(Item.FilePath);
+        public string AbsoluteFilePath => FavoritesManager.Instance.ToAbsolutePath(Item.Path);
 
         /// <summary>
         /// Checks if the file still exists on disk.
         /// </summary>
-        public bool FileExists => !string.IsNullOrEmpty(Item.FilePath) && File.Exists(AbsoluteFilePath);
+        public bool FileExists => !string.IsNullOrEmpty(Item.Path) && File.Exists(AbsoluteFilePath);
 
         // ITreeDisplayItem
         public string Text => Item.Name;
@@ -144,6 +147,9 @@ namespace SolutionFavorites.MEF
         // IInvocationPattern
         public IInvocationController InvocationController => FavoritesInvocationController.Instance;
         public bool CanPreview => FileExists;
+
+        // IDragDropSourcePattern
+        public IDragDropSourceController DragDropSourceController => FavoritesDragDropController.Instance;
 
         // ISupportDisposalNotification
         public bool IsDisposed => _disposed;
