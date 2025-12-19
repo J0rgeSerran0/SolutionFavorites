@@ -105,13 +105,35 @@ namespace SolutionFavorites.MEF
         #region Drag-Drop Target Helpers
 
         /// <summary>
+        /// Checks if the drag data contains items that can be added to favorites.
+        /// </summary>
+        private static bool CanAcceptDrop(DragEventArgs e)
+        {
+            // Accept our internal favorites format (for reordering)
+            if (e.Data.GetDataPresent(FavoritesDragDropConstants.FavoritesDataFormat))
+            {
+                return true;
+            }
+
+            // Accept file drops from Solution Explorer or Windows Explorer
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Handles drag enter for favorites items.
         /// </summary>
         protected static void HandleDragEnter(DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(FavoritesDragDropConstants.FavoritesDataFormat))
+            if (CanAcceptDrop(e))
             {
-                e.Effects = DragDropEffects.Move;
+                e.Effects = e.Data.GetDataPresent(FavoritesDragDropConstants.FavoritesDataFormat)
+                    ? DragDropEffects.Move
+                    : DragDropEffects.Copy;
             }
         }
 
@@ -120,9 +142,11 @@ namespace SolutionFavorites.MEF
         /// </summary>
         protected static void HandleDragOver(DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(FavoritesDragDropConstants.FavoritesDataFormat))
+            if (CanAcceptDrop(e))
             {
-                e.Effects = DragDropEffects.Move;
+                e.Effects = e.Data.GetDataPresent(FavoritesDragDropConstants.FavoritesDataFormat)
+                    ? DragDropEffects.Move
+                    : DragDropEffects.Copy;
             }
         }
 
@@ -142,8 +166,28 @@ namespace SolutionFavorites.MEF
         protected static void HandleDrop(FavoriteItem targetFolder, DragEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            if (!e.Data.GetDataPresent(FavoritesDragDropConstants.FavoritesDataFormat))
+
+            // Handle internal favorites reordering
+            if (e.Data.GetDataPresent(FavoritesDragDropConstants.FavoritesDataFormat))
+            {
+                HandleFavoritesDrop(targetFolder, e);
                 return;
+            }
+
+            // Handle file drops from Solution Explorer or Windows Explorer
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                HandleFileDrop(targetFolder, e);
+                return;
+            }
+        }
+
+        /// <summary>
+        /// Handles dropping favorites items for reordering.
+        /// </summary>
+        private static void HandleFavoritesDrop(FavoriteItem targetFolder, DragEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
 
             var nodes = e.Data.GetData(FavoritesDragDropConstants.FavoritesDataFormat) as object[];
             if (nodes == null)
@@ -168,6 +212,36 @@ namespace SolutionFavorites.MEF
                 if (itemToMove != null)
                 {
                     FavoritesManager.Instance.MoveItem(itemToMove, targetFolder);
+                }
+            }
+
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Handles dropping files from Solution Explorer or Windows Explorer.
+        /// </summary>
+        private static void HandleFileDrop(FavoriteItem targetFolder, DragEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            var files = e.Data.GetData(DataFormats.FileDrop) as string[];
+            if (files == null || files.Length == 0)
+                return;
+
+            foreach (var filePath in files)
+            {
+                // Only add files, not directories
+                if (System.IO.File.Exists(filePath))
+                {
+                    if (targetFolder != null)
+                    {
+                        FavoritesManager.Instance.AddFileToFolder(filePath, targetFolder);
+                    }
+                    else
+                    {
+                        FavoritesManager.Instance.AddFile(filePath);
+                    }
                 }
             }
 

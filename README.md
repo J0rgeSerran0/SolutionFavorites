@@ -43,7 +43,8 @@ Organize your favorites into a custom folder structure:
 
 Rearrange your favorites effortlessly:
 
-- Drag files between folders
+- Drag files from Solution Explorer directly onto the Favorites node to add them
+- Drag files between folders to reorganize
 - Move files back to the root Favorites node
 - Reorganize folders within the hierarchy
 
