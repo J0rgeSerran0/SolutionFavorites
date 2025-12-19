@@ -34,6 +34,7 @@ namespace SolutionFavorites.MEF
         public FavoritesRootNode(object sourceItem)
             : base(sourceItem)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             _children = new ObservableCollection<object>();
             FavoritesManager.Instance.FavoritesChanged += OnFavoritesChanged;
             
@@ -43,17 +44,18 @@ namespace SolutionFavorites.MEF
 
         private void OnFavoritesChanged(object sender, EventArgs e)
         {
-#pragma warning disable VSTHRD110 // Observe result of async calls
+#pragma warning disable VSSDK007 // Fire-and-forget is intentional for UI refresh event
             _ = ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 RefreshChildren();
             });
-#pragma warning restore VSTHRD110
+#pragma warning restore VSSDK007
         }
 
         private void RefreshChildren()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             DisposeChildren(_children);
 
             var rootItems = FavoritesManager.Instance.GetRootItems();
@@ -99,7 +101,11 @@ namespace SolutionFavorites.MEF
         public void OnDragEnter(DirectionalDropArea dropArea, DragEventArgs e) => HandleDragEnter(e);
         public void OnDragOver(DirectionalDropArea dropArea, DragEventArgs e) => HandleDragOver(e);
         public void OnDragLeave(DirectionalDropArea dropArea, DragEventArgs e) => HandleDragLeave(e);
-        public void OnDrop(DirectionalDropArea dropArea, DragEventArgs e) => HandleDrop(null, e);
+        public void OnDrop(DirectionalDropArea dropArea, DragEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            HandleDrop(null, e);
+        }
 
         protected override void OnDisposing()
         {

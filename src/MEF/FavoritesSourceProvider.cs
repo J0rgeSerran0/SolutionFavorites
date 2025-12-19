@@ -55,6 +55,7 @@ namespace SolutionFavorites.MEF
 
         public IAttachedCollectionSource CreateCollectionSource(object item, string relationshipName)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             if (relationshipName == KnownRelationships.Contains)
             {
                 // For the solution node, return a wrapper that contains the Favorites root node

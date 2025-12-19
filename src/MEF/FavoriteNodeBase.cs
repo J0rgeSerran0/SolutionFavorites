@@ -141,6 +141,7 @@ namespace SolutionFavorites.MEF
         /// <param name="e">The drag event args.</param>
         protected static void HandleDrop(FavoriteItem targetFolder, DragEventArgs e)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             if (!e.Data.GetDataPresent(FavoritesDragDropConstants.FavoritesDataFormat))
                 return;
 

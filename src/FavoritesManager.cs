@@ -173,6 +173,7 @@ namespace SolutionFavorites
         /// </summary>
         public void Save()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             EnsureSolutionPathLoaded();
 
             var filePath = GetFavoritesFilePath(_currentSolutionPath);
@@ -212,6 +213,7 @@ namespace SolutionFavorites
         /// </summary>
         public IReadOnlyList<FavoriteItem> GetRootItems()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             EnsureSolutionPathLoaded();
             return SortItems(_data.Items);
         }
@@ -243,6 +245,7 @@ namespace SolutionFavorites
         /// </summary>
         public FavoriteItem AddFile(string filePath)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             EnsureSolutionPathLoaded();
 
             var relativePath = ToRelativePath(filePath);
@@ -265,6 +268,7 @@ namespace SolutionFavorites
         /// </summary>
         public FavoriteItem AddFileToFolder(string filePath, FavoriteItem folder)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             EnsureSolutionPathLoaded();
 
             var relativePath = ToRelativePath(filePath);
@@ -287,6 +291,7 @@ namespace SolutionFavorites
         /// </summary>
         public FavoriteItem CreateFolder(string name)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             EnsureSolutionPathLoaded();
 
             var folder = FavoriteItem.CreateFolder(name);
@@ -301,6 +306,7 @@ namespace SolutionFavorites
         /// </summary>
         public FavoriteItem CreateFolderIn(string name, FavoriteItem parentFolder)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             EnsureSolutionPathLoaded();
 
             var folder = FavoriteItem.CreateFolder(name);
@@ -315,6 +321,7 @@ namespace SolutionFavorites
         /// </summary>
         public void RenameFolder(FavoriteItem folder, string newName)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             if (folder == null || !folder.IsFolder)
                 return;
 
@@ -328,6 +335,7 @@ namespace SolutionFavorites
         /// </summary>
         public void MoveItem(FavoriteItem item, FavoriteItem targetFolder)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             if (item == null)
                 return;
 
@@ -382,6 +390,7 @@ namespace SolutionFavorites
         /// </summary>
         public void Remove(FavoriteItem item)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             if (item == null)
                 return;
 

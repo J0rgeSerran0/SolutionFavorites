@@ -40,6 +40,7 @@ namespace SolutionFavorites.MEF
         public FavoriteFolderNode(FavoriteItem item, object parent)
             : base(parent)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             Item = item;
             _children = new ObservableCollection<object>();
             FavoritesManager.Instance.FavoritesChanged += OnFavoritesChanged;
@@ -53,13 +54,13 @@ namespace SolutionFavorites.MEF
 
         private void OnFavoritesChanged(object sender, EventArgs e)
         {
-#pragma warning disable VSTHRD110 // Observe result of async calls
+#pragma warning disable VSSDK007 // Fire-and-forget is intentional for UI refresh event
             _ = ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 RefreshChildren();
             });
-#pragma warning restore VSTHRD110
+#pragma warning restore VSSDK007
         }
 
         /// <summary>
@@ -67,6 +68,7 @@ namespace SolutionFavorites.MEF
         /// </summary>
         public void RefreshChildren()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             DisposeChildren(_children);
 
             var folderItems = FavoritesManager.Instance.GetFolderItems(Item);
@@ -121,7 +123,11 @@ namespace SolutionFavorites.MEF
         public void OnDragEnter(DirectionalDropArea dropArea, DragEventArgs e) => HandleDragEnter(e);
         public void OnDragOver(DirectionalDropArea dropArea, DragEventArgs e) => HandleDragOver(e);
         public void OnDragLeave(DirectionalDropArea dropArea, DragEventArgs e) => HandleDragLeave(e);
-        public void OnDrop(DirectionalDropArea dropArea, DragEventArgs e) => HandleDrop(Item, e);
+        public void OnDrop(DirectionalDropArea dropArea, DragEventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            HandleDrop(Item, e);
+        }
 
         /// <summary>
         /// Updates the expanded state for icon changes.

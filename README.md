@@ -51,6 +51,8 @@ Rearrange your favorites effortlessly:
 
 Use the **Toggle Favorites** button on the Solution Explorer toolbar to show or hide the Favorites node when you need more space.
 
+![Toggle visibility](art/toggle-visibility.png)
+
 ### Missing File Detection
 
 Files that have been moved or deleted are clearly indicated with:
