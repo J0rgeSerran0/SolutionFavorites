@@ -40,6 +40,11 @@
         <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_ITEMNODE"/>
       </Group>
       
+      <!-- Group for "Add to Favorites" in Solution Explorer folder context menu -->
+      <Group guid="SolutionFavorites" id="AddToFavoritesFolderGroup" priority="0x0010">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_FOLDERNODE"/>
+      </Group>
+      
       <!-- Group for toggle button on Solution Explorer toolbar -->
       <Group guid="SolutionFavorites" id="SolutionExplorerToolbarGroup" priority="0x0600">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_TOOL_PROJWIN"/>
@@ -77,6 +82,18 @@
         <Strings>
           <ButtonText>Add to Favorites</ButtonText>
           <CanonicalName>.SolutionFavorites.AddToFavorites</CanonicalName>
+        </Strings>
+      </Button>
+      
+      <!-- Add to Favorites - appears in Solution Explorer folder context menu -->
+      <Button guid="SolutionFavorites" id="AddFolderToFavorites" priority="0x0100" type="Button">
+        <Parent guid="SolutionFavorites" id="AddToFavoritesFolderGroup" />
+        <Icon guid="ImageCatalogGuid" id="AddFavorite" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <Strings>
+          <ButtonText>Add to Favorites</ButtonText>
+          <CanonicalName>.SolutionFavorites.AddFolderToFavorites</CanonicalName>
         </Strings>
       </Button>
       
@@ -209,6 +226,7 @@
       
       <!-- Groups -->
       <IDSymbol name="AddToFavoritesGroup" value="0x0010" />
+      <IDSymbol name="AddToFavoritesFolderGroup" value="0x0011" />
       <IDSymbol name="SolutionExplorerToolbarGroup" value="0x0020" />
       <IDSymbol name="FileEditGroup" value="0x0060" />
       <IDSymbol name="FileActionsGroup" value="0x0070" />
@@ -218,6 +236,7 @@
       
       <!-- Commands -->
       <IDSymbol name="AddToFavorites" value="0x0100" />
+      <IDSymbol name="AddFolderToFavorites" value="0x0102" />
       <IDSymbol name="RemoveFromFavorites" value="0x0101" />
       <IDSymbol name="OpenContainingFolder" value="0x0105" />
       <IDSymbol name="CopyFullPath" value="0x0106" />
