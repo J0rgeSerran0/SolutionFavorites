@@ -60,6 +60,7 @@
     <Compile Include="MEF\FavoritesContextMenuController.cs" />
     <Compile Include="MEF\FavoritesDragDropController.cs" />
     <Compile Include="MEF\FavoritesDragDropConstants.cs" />
+    <Compile Include="MEF\FavoritesDragDropTargetController.cs" />
     <Compile Include="MEF\FavoritesInvocationController.cs" />
     <Compile Include="MEF\FavoritesRootNode.cs" />
     <Compile Include="MEF\FavoritesSolutionCollectionSource.cs" />
